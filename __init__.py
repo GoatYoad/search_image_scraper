@@ -1,2 +1,2 @@
 # __init__.py file
-from .search_image_scrape import *
+from .search_image_scraper import *
