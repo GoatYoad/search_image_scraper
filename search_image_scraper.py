@@ -174,7 +174,7 @@ def download_images(query, num_images, dic, driver_path, unwanted_keywords):
 
     seen_hashes = set()
 
-    added_count, removed_count_dup, removed_count_small, er = 0
+    added_count, removed_count_dup, removed_count_small, er = 0,0,0,0
 
     # Download the images
     for i, url in enumerate(image_urls):
