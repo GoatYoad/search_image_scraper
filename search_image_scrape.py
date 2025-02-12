@@ -14,8 +14,8 @@ import unicodedata
 
 def unwanted_keywords_check(text, keywords):
     # Normalize both the text and keywords
-    normalized_text = normalize()(text.lower())
-    normalized_keywords = [normalize()(keyword.lower()) for keyword in keywords]
+    normalized_text = normalize(text.lower())
+    normalized_keywords = [normalize(keyword.lower()) for keyword in keywords]
 
     # Create a regex pattern for matching any of the normalized keywords
     pattern = (
@@ -115,11 +115,6 @@ def duplicate_check(image_path, seen_hashes):
         print(f"Error processing {image_path}: {e}")
         return True
 
-
-# List of unwanted keywords to filter out
-unwanted_keywords = []
-
-
 def find_top_div(element):
     current = element
     while current:
@@ -139,13 +134,13 @@ def download_images(query, num_images, dic, driver_path, unwanted_keywords):
     driver = setup_driver(driver_path)
 
     # Open Google Image search
-    driver.get(f"https://www.google.com/search?q={search_query}&tbm=isch")
+    driver.get(f"https://www.google.com/search?q={query}&tbm=isch")
     time.sleep(2)
 
     image_urls = set()
     while len(image_urls) < num_images:
         # Check if we've reached the end of the results
-        if end_of_page()(driver):
+        if end_of_page(driver):
             print("End of image results reached or no more images to load.")
             break
 
@@ -166,10 +161,10 @@ def download_images(query, num_images, dic, driver_path, unwanted_keywords):
             if not src:
                 continue
             # Check if unwanted keywords are in alt text
-            if unwanted_keywords_check()(alt_text, unwanted_keywords):
+            if unwanted_keywords_check(alt_text, unwanted_keywords):
                 continue
             # Check if the query is in common descriptors
-            if query_match()(alt_text, query) or query_match()(data_lpage, query):
+            if query_match(alt_text, query) or query_match(data_lpage, query):
                 image_urls.add(src)
                 continue
 
@@ -192,13 +187,13 @@ def download_images(query, num_images, dic, driver_path, unwanted_keywords):
                 f.write(img_data)
 
             # Check for image size validity
-            if not size_check()(img_path):
+            if not size_check(img_path):
                 os.remove(img_path)
                 removed_count_small += 1
                 continue
 
             # Check for duplicates
-            if duplicate_check()(img_path, seen_hashes):
+            if duplicate_check(img_path, seen_hashes):
                 os.remove(img_path)
                 removed_count_dup += 1
             else:
