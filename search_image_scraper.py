@@ -188,7 +188,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
         for i, url in enumerate(image_urls):
             try:
                 img_data = requests.get(url).content
-                img_path = os.path.join(output_dir, f"{query}-{i+1+track}.jpg")
+                img_path = os.path.join(output_dir, f"{query}-{last+i+track+1}.jpg")
                 
                 with open(img_path, "wb") as f:
                     f.write(img_data)
@@ -215,7 +215,11 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
             finally:
                 if added_count >= num_images:
                     break
-
+        last = last + i # If we run this loop again, remember where we left off
+        
+        # Scroll the page to load more images
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
+        time.sleep(2)
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
         time.sleep(2)
