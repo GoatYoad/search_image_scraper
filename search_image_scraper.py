@@ -115,6 +115,7 @@ def duplicate_check(image_path, seen_hashes):
         print(f"Error processing {image_path}: {e}")
         return True
 
+
 def find_top_div(element):
     current = element
     while current:
@@ -127,18 +128,25 @@ def find_top_div(element):
 
 
 # Download images from Google Image search
-def download_images(query, num_images, dic, driver_path, unwanted_keywords):
-
-    output_dir = os.path.join(dic, query)
+def download_images(query, num_images, output_dir, driver_path, unwanted_keywords):
 
     driver = setup_driver(driver_path)
 
-    # Open Google Image search
+    # Open Google image search
     driver.get(f"https://www.google.com/search?q={query}&tbm=isch")
     time.sleep(2)
 
-    image_urls = set()
-    while len(image_urls) < num_images:
+    # Track seen urls to prevent redownloading the same image
+    seen_urls = set()
+    # Track seen hashes to prevent duplicates
+    seen_hashes = set()
+
+    # Initialize counters
+    added_count, removed_count_dup, removed_count_small, er = 0, 0, 0, 0
+
+    while added_count < num_images:
+        image_urls = set()
+
         # Check if we've reached the end of the results
         if end_of_page(driver):
             print("End of image results reached or no more images to load.")
@@ -152,59 +160,67 @@ def download_images(query, num_images, dic, driver_path, unwanted_keywords):
             alt_text = img.get("alt", "").lower()
             src = img.get("src")
 
+            if src in seen_urls:  # Skip if we've seen this image before
+                continue
+
+            seen_urls.add(src)  # Image now seen
+
             # Find the outermost wrapping div with data-lpage
             outer_div = find_top_div(img)
             data_lpage = (
                 outer_div.get("data-lpage", "").lower() if outer_div else ""
             )  # Extract data-lpage
 
-            if not src:
-                continue
             # Check if unwanted keywords are in alt text
             if unwanted_keywords_check(alt_text, unwanted_keywords):
                 continue
             # Check if the query is in common descriptors
             if query_match(alt_text, query) or query_match(data_lpage, query):
                 image_urls.add(src)
-                continue
+
+        track = 0
+        for i, url in enumerate(image_urls):
+            if i >= num_images:
+                break
+
+            try:
+                img_data = requests.get(url).content
+                img_path = os.path.join(output_dir, f"{query}-{i+1+track}.jpg")
+
+                with open(img_path, "wb") as f:
+                    f.write(img_data)
+
+                # Check for image size validity
+                if not size_check(img_path):
+                    removed_count_small += 1
+                    os.remove(img_path)
+                    track -= 1
+                    continue
+
+                # Check for duplicates
+                if duplicate_check(img_path, seen_hashes):
+                    removed_count_dup += 1
+                    os.remove(img_path)
+                    track -= 1
+                    continue
+                else:
+                    added_count += 1
+
+            except Exception as e:
+                er += 1
+                print(f"Error downloading image {url}: {e}")
+            finally:
+                if added_count >= num_images:
+                    break
 
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
         time.sleep(2)
 
-    seen_hashes = set()
-
-    added_count, removed_count_dup, removed_count_small, er = 0,0,0,0
-
-    # Download the images
-    for i, url in enumerate(image_urls):
-        if i >= num_images:
-            break
-        try:
-            img_data = requests.get(url).content
-            img_path = os.path.join(output_dir, f"{query}-{i+1}.jpg")
-            with open(img_path, "wb") as f:
-                f.write(img_data)
-
-            # Check for image size validity
-            if not size_check(img_path):
-                os.remove(img_path)
-                removed_count_small += 1
-                continue
-
-            # Check for duplicates
-            if duplicate_check(img_path, seen_hashes):
-                os.remove(img_path)
-                removed_count_dup += 1
-            else:
-                added_count += 1
-
-        except Exception as e:
-            er += 1
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
     print(
-        f"{removed_count_small} images disqualified (smaller than 100x100) and another {removed_count_dup} images disqualified (duplicates) before download for {query} query"
+        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query"
     )
 
     driver.quit()
