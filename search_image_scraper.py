@@ -11,12 +11,18 @@ import re
 from itertools import permutations
 import unicodedata
 
-# In cases where we want to continue downloading images, we pick up where we left with the highest number to ensure consistency and that the images are being appended 
+
+# In cases where we want to continue downloading images, we pick up where we left with the highest number to ensure consistency and that the images are being appended
 def track_current(output_dir, query):
     pattern = re.compile(rf"{query}-(\d+)\.jpg")
-    numbers = [int(pattern.match(file).group(1)) for file in os.listdir(output_dir) if pattern.match(file)]
+    numbers = [
+        int(pattern.match(file).group(1))
+        for file in os.listdir(output_dir)
+        if pattern.match(file)
+    ]
 
     return max(numbers, default=0)  # Return highest number, or 0 if no matches
+
 
 def unwanted_keywords_check(text, keywords):
     # Normalize both the text and keywords
@@ -141,16 +147,16 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
     # Open Google image search
     driver.get(f"https://www.google.com/search?q={query}&tbm=isch")
     time.sleep(2)
-    
-    # Track seen urls to prevent redownloading the same image 
+
+    # Track seen urls to prevent redownloading the same image
     seen_urls = set()
     # Track seen hashes to prevent duplicates
     seen_hashes = set()
 
     # Initialize counters
-    added_count, removed_count_dup, removed_count_small, er, last = 0, 0, 0, 0, 0
+    added_count, removed_count_dup, removed_count_small, er = 0, 0, 0, 0
     track = track_current(output_dir, query)
-    
+
     while added_count < num_images:
         image_urls = set()
 
@@ -184,12 +190,12 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
             # Check if the query is in common descriptors
             if query_match(alt_text, query) or query_match(data_lpage, query):
                 image_urls.add(src)
-    
+
         for i, url in enumerate(image_urls):
             try:
                 img_data = requests.get(url).content
-                img_path = os.path.join(output_dir, f"{query}-{last+i+track+1}.jpg")
-                
+                img_path = os.path.join(output_dir, f"{query}-{i+track+1}.jpg")
+
                 with open(img_path, "wb") as f:
                     f.write(img_data)
 
@@ -197,29 +203,30 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
                 if not size_check(img_path):
                     removed_count_small += 1
                     os.remove(img_path)
-                    track -=1
+                    track -= 1
                     continue
 
                 # Check for duplicates
                 if duplicate_check(img_path, seen_hashes):
                     removed_count_dup += 1
                     os.remove(img_path)
-                    track -=1
+                    track -= 1
                     continue
-                
+
                 added_count += 1
-            
+
             except Exception as e:
-                er += 1 
-                track -=1
+                er += 1
+                track -= 1
             finally:
                 if added_count >= num_images:
                     break
-        last = last + i # If we run this loop again, remember where we left off
-        
+        track = track + i  # If we run this loop again, remember where we left off
+
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
         time.sleep(2)
+
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
         time.sleep(2)
@@ -227,6 +234,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
     print(
-        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
+        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query"
+    )
 
     driver.quit()
