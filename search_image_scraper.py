@@ -113,10 +113,10 @@ def setup_driver(driver_path):
 
 # Hash check for duplicate images
 def duplicate_check(image_path, seen_hashes):
-    # Check if the image is a duplicate based on its hash.
+    # Check if the image is a duplicate based on its hash
     try:
         img = Image.open(image_path)
-        hash_value = imagehash.average_hash(img)
+        hash_value = imagehash.phash(img)
         hash_str = str(hash_value)
 
         if hash_str in seen_hashes:
@@ -124,8 +124,29 @@ def duplicate_check(image_path, seen_hashes):
         seen_hashes.add(hash_str)
         return False
     except Exception as e:
-        print(f"Error processing {image_path}: {e}")
         return True
+
+
+# Hash to account for images already in dir, so there won't be duplicates
+def previous_hashes(output_dir):
+
+    hashes = set()
+    valid = {".jpg", ".jpeg", ".png"}
+
+    for file in os.listdir(output_dir):
+        file_path = os.path.join(output_dir, file)
+
+        if not any(file.lower().endswith(ext) for ext in valid):
+            continue  # Skip non-images
+
+        try:
+            with Image.open(file_path) as img:
+                hash_value = imagehash.phash(img)
+                hashes.add(str(hash_value))
+        except:
+            continue
+
+    return hashes
 
 
 def find_top_div(element):
@@ -238,3 +259,4 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
     )
 
     driver.quit()
+
