@@ -23,7 +23,6 @@ def track_current(output_dir, query):
 
     return max(numbers, default=0)  # Return highest number, or 0 if no matches
 
-
 def unwanted_keywords_check(text, keywords):
     # Normalize both the text and keywords
     normalized_text = normalize(text.lower())
@@ -38,7 +37,6 @@ def unwanted_keywords_check(text, keywords):
 
     return bool(re.search(pattern, normalized_text))
 
-
 def query_match(text, query):
     # Normalize the text and query
     normalized_text = normalize(text.lower())
@@ -50,28 +48,21 @@ def query_match(text, query):
 
     # Check if any of the query versions matches
     for perm in permutations_list:
-        # Allow signs between words
-        flexible_perm = r"\s*[\s\-_!.,;?\'\":/&\~\+()<>{}\[\]\|@#$%^=]*\s*".join(
-            map(re.escape, perm.split())
-        )
-        # Allow signs before and after the entire combination
-        pattern = (
-            r"[\b\s\-_!.,;?\'\":/&\~\+()<>{}\[\]\|@#$%^=]*"
-            + flexible_perm
-            + r"[\b\s\-_!.,;?\'\":/&\~\+()<>{}\[\]\|@#$%^=]*"
-        )
+
+        # Allow chars that aren't letters
+        flexible_perm = r"[^a-zA-Z0-9]*".join(map(re.escape, perm.split()))
+        pattern = r"(?<![a-zA-Z0-9])" + flexible_perm + r"(?![a-zA-Z0-9])"
+
         if re.search(pattern, normalized_text):
             return True
     return False
-
 
 # Normalize special chars to their base version
 def normalize(text):
     return unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("utf-8")
 
-
+# Check if the image is larger than 100x100
 def size_check(img_path):
-    # Check if the image is larger than 100x100
     try:
         with Image.open(img_path) as img:
             width, height = img.size
@@ -83,7 +74,7 @@ def size_check(img_path):
         print(f"Error checking size for {img_path}: {e}")
         return False
 
-
+# See if the end of the page was reached
 def end_of_page(driver):
     # Get the current page source and find if images are still being loaded
     last_height = driver.execute_script("return document.body.scrollHeight")
@@ -100,7 +91,6 @@ def end_of_page(driver):
     # Check if the height has changed to see if it's the end
     return new_height == last_height
 
-
 # Google Image search setup
 def setup_driver(driver_path):
     options = Options()
@@ -109,7 +99,6 @@ def setup_driver(driver_path):
     service = Service(driver_path)
     driver = webdriver.Chrome()
     return driver
-
 
 # Hash check for duplicate images
 def duplicate_check(image_path, seen_hashes):
@@ -126,29 +115,24 @@ def duplicate_check(image_path, seen_hashes):
     except Exception as e:
         return True
 
-
 # Hash to account for images already in dir, so there won't be duplicates
 def previous_hashes(output_dir):
-
     hashes = set()
     valid = {".jpg", ".jpeg", ".png"}
-
     for file in os.listdir(output_dir):
         file_path = os.path.join(output_dir, file)
 
         if not any(file.lower().endswith(ext) for ext in valid):
             continue  # Skip non-images
-
         try:
             with Image.open(file_path) as img:
                 hash_value = imagehash.phash(img)
                 hashes.add(str(hash_value))
         except:
             continue
-
     return hashes
 
-
+# Find the outermost wrapping div with the needed data-lpage
 def find_top_div(element):
     current = element
     while current:
@@ -157,8 +141,7 @@ def find_top_div(element):
         ):  # Check for data-lpage attribute
             return current
         current = current.find_parent("div")  # Move up to the parent
-    return None  # If no matching div is found
-
+    return None
 
 # Download images from Google Image search
 def download_images(query, num_images, output_dir, driver_path, unwanted_keywords):
@@ -201,9 +184,8 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
 
             # Find the outermost wrapping div with data-lpage
             outer_div = find_top_div(img)
-            data_lpage = (
-                outer_div.get("data-lpage", "").lower() if outer_div else ""
-            )  # Extract data-lpage
+            # Extract data-lpage
+            data_lpage = (outer_div.get("data-lpage", "").lower() if outer_div else "")  
 
             # Check if unwanted keywords are in alt text
             if unwanted_keywords_check(alt_text, unwanted_keywords):
@@ -248,15 +230,11 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
         time.sleep(2)
 
-        # Scroll the page to load more images
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
-        time.sleep(2)
-
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
-    print(
-        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query"
-    )
+    print(f"{removed_count_small} images disqualified (smaller than 100x100) 
+    and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
 
     driver.quit()
+
 
