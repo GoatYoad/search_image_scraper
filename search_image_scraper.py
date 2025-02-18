@@ -158,7 +158,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
     seen_hashes = set()
 
     # Initialize counters
-    added_count, removed_count_dup, removed_count_small, er = 0, 0, 0, 0
+    added_count, removed_count_dup, removed_count_small, er, remember = 0, 0, 0, 0, 0 
     track = track_current(output_dir, query)
 
     while added_count < num_images:
@@ -222,9 +222,10 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
                 er += 1
                 track -= 1
             finally:
+                remember = i
                 if added_count >= num_images:
                     break
-        track = track + i  # If we run this loop again, remember where we left off
+        track = track + remember  # If we run this loop again, remember where we left off
 
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
