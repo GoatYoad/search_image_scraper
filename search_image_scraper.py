@@ -232,8 +232,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
 
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
-    print(f"{removed_count_small} images disqualified (smaller than 100x100) 
-    and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
+    print(f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
 
     driver.quit()
 
