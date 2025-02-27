@@ -12,6 +12,13 @@ from itertools import permutations
 import unicodedata
 
 
+# Check if all required arguments are provided
+def args_check(args_dict):
+    for name, value in args_dict.items():
+        if value is None:
+            raise ValueError(f"Missing argument: {name}, make sure all required arguments are provided")
+      
+
 # In cases where we want to continue downloading images, we pick up where we left with the highest number to ensure consistency and that the images are being appended
 def track_current(output_dir, query):
     pattern = re.compile(rf"{query}-(\d+)\.jpg")
@@ -22,6 +29,7 @@ def track_current(output_dir, query):
     ]
 
     return max(numbers, default=0)  # Return highest number, or 0 if no matches
+
 
 def unwanted_keywords_check(text, keywords):
     # Normalize both the text and keywords
@@ -36,6 +44,7 @@ def unwanted_keywords_check(text, keywords):
     )
 
     return bool(re.search(pattern, normalized_text))
+
 
 def query_match(text, query):
     # Normalize the text and query
@@ -57,9 +66,11 @@ def query_match(text, query):
             return True
     return False
 
+
 # Normalize special chars to their base version
 def normalize(text):
     return unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("utf-8")
+
 
 # Check if the image is larger than 100x100
 def size_check(img_path):
@@ -73,6 +84,7 @@ def size_check(img_path):
     except Exception as e:
         print(f"Error checking size for {img_path}: {e}")
         return False
+
 
 # See if the end of the page was reached
 def end_of_page(driver):
@@ -91,6 +103,7 @@ def end_of_page(driver):
     # Check if the height has changed to see if it's the end
     return new_height == last_height
 
+
 # Google Image search setup
 def setup_driver(driver_path):
     options = Options()
@@ -99,6 +112,7 @@ def setup_driver(driver_path):
     service = Service(driver_path)
     driver = webdriver.Chrome()
     return driver
+
 
 # Hash check for duplicate images
 def duplicate_check(image_path, seen_hashes):
@@ -114,6 +128,7 @@ def duplicate_check(image_path, seen_hashes):
         return False
     except Exception as e:
         return True
+
 
 # Hash to account for images already in dir, so there won't be duplicates
 def previous_hashes(output_dir):
@@ -132,6 +147,7 @@ def previous_hashes(output_dir):
             continue
     return hashes
 
+
 # Find the outermost wrapping div with the needed data-lpage
 def find_top_div(element):
     current = element
@@ -143,9 +159,16 @@ def find_top_div(element):
         current = current.find_parent("div")  # Move up to the parent
     return None
 
-# Download images from Google Image search
-def download_images(query, num_images, output_dir, driver_path, unwanted_keywords):
 
+# Download images from Google Image search
+def download_images(query = None, num_images = None, output_dir = None, driver_path = None, unwanted_keywords = [], smart_mode = True):
+    
+    args_check({
+        "query": query, 
+        "num_images": num_images, 
+        "output_dir": output_dir, 
+        "driver_path": driver_path})
+    
     driver = setup_driver(driver_path)
 
     # Open Google image search
@@ -158,7 +181,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
     seen_hashes = set()
 
     # Initialize counters
-    added_count, removed_count_dup, removed_count_small, er, remember = 0, 0, 0, 0, 0 
+    added_count, removed_count_dup, removed_count_small, er, remember = 0, 0, 0, 0, 0
     track = track_current(output_dir, query)
 
     while added_count < num_images:
@@ -185,7 +208,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
             # Find the outermost wrapping div with data-lpage
             outer_div = find_top_div(img)
             # Extract data-lpage
-            data_lpage = (outer_div.get("data-lpage", "").lower() if outer_div else "")  
+            data_lpage = outer_div.get("data-lpage", "").lower() if outer_div else ""
 
             # Check if unwanted keywords are in alt text
             if unwanted_keywords_check(alt_text, unwanted_keywords):
@@ -225,7 +248,7 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
                 remember = i
                 if added_count >= num_images:
                     break
-        track = track + remember  # If we run this loop again, remember where we left off
+        track = track + remember # If we run this loop again, remember where we left off
 
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
@@ -233,7 +256,9 @@ def download_images(query, num_images, output_dir, driver_path, unwanted_keyword
 
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
-    print(f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
+    print(
+        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query"
+    )
 
     driver.quit()
 
