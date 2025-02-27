@@ -215,9 +215,7 @@ def download_images(
                 # Find the outermost wrapping div with data-lpage
                 outer_div = find_top_div(img)
                 # Extract data-lpage
-                data_lpage = (
-                    outer_div.get("data-lpage", "").lower() if outer_div else ""
-                )
+                data_lpage = (outer_div.get("data-lpage", "").lower() if outer_div else "")
 
             src = img.get("src")
             if src in seen_urls:  # Skip if we've seen this image before
@@ -232,6 +230,7 @@ def download_images(
                 # Check if the query is in common descriptors
                 if query_match(alt_text, query) or query_match(data_lpage, query):
                     image_urls.add(src)
+
             else:
                 image_urls.add(src)
 
@@ -268,10 +267,8 @@ def download_images(
                 remember = i
                 if added_count >= num_images:
                     break
-                
-        track = (
-            track + remember
-        )  # If we run this loop again, remember where we left off
+
+        track = track + remember  # If we run this loop again, remember where we left off
 
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
@@ -279,8 +276,7 @@ def download_images(
 
     print(f"Error downloading {er} samples")
     print(f"{added_count} images downloaded for {query} query")
-    print(
-        f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query"
-    )
+    print(f"{removed_count_small} images disqualified (smaller than 100x100) and {removed_count_dup} images disqualified (duplicates) while downloading for {query} query")
 
     driver.quit()
+
