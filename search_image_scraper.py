@@ -16,8 +16,10 @@ import unicodedata
 def args_check(args_dict):
     for name, value in args_dict.items():
         if value is None:
-            raise ValueError(f"Missing argument: {name}, make sure all required arguments are provided")
-      
+            raise ValueError(
+                f"Missing argument: {name}, make sure all required arguments are provided"
+            )
+
 
 # In cases where we want to continue downloading images, we pick up where we left with the highest number to ensure consistency and that the images are being appended
 def track_current(output_dir, query):
@@ -161,14 +163,23 @@ def find_top_div(element):
 
 
 # Download images from Google Image search
-def download_images(query = None, num_images = None, output_dir = None, driver_path = None, unwanted_keywords = [], smart_mode = True):
-    
-    args_check({
-        "query": query, 
-        "num_images": num_images, 
-        "output_dir": output_dir, 
-        "driver_path": driver_path})
-    
+def download_images(
+    query=None,
+    num_images=None,
+    output_dir=None,
+    driver_path=None,
+    unwanted_keywords=[],
+    smart_mode=True,):
+
+    args_check(
+        {
+            "query": query,
+            "num_images": num_images,
+            "output_dir": output_dir,
+            "driver_path": driver_path,
+        }
+    )
+
     driver = setup_driver(driver_path)
 
     # Open Google image search
@@ -197,25 +208,33 @@ def download_images(query = None, num_images = None, output_dir = None, driver_p
         images = soup.find_all("img")
 
         for img in images:
-            alt_text = img.get("alt", "").lower()
-            src = img.get("src")
+            # Get necessary elements only if needed (smart mode)
+            if smart_mode:
+                alt_text = img.get("alt", "").lower()
 
+                # Find the outermost wrapping div with data-lpage
+                outer_div = find_top_div(img)
+                # Extract data-lpage
+                data_lpage = (
+                    outer_div.get("data-lpage", "").lower() if outer_div else ""
+                )
+
+            src = img.get("src")
             if src in seen_urls:  # Skip if we've seen this image before
                 continue
-
             seen_urls.add(src)  # Image now seen
 
-            # Find the outermost wrapping div with data-lpage
-            outer_div = find_top_div(img)
-            # Extract data-lpage
-            data_lpage = outer_div.get("data-lpage", "").lower() if outer_div else ""
-
-            # Check if unwanted keywords are in alt text
-            if unwanted_keywords_check(alt_text, unwanted_keywords):
-                continue
-            # Check if the query is in common descriptors
-            if query_match(alt_text, query) or query_match(data_lpage, query):
+            # Only filter if smart mode is true
+            if smart_mode:
+                # Check if unwanted keywords are in alt text
+                if unwanted_keywords_check(alt_text, unwanted_keywords):
+                    continue
+                # Check if the query is in common descriptors
+                if query_match(alt_text, query) or query_match(data_lpage, query):
+                    image_urls.add(src)
+            else:
                 image_urls.add(src)
+
 
         for i, url in enumerate(image_urls):
             try:
@@ -244,11 +263,15 @@ def download_images(query = None, num_images = None, output_dir = None, driver_p
             except Exception as e:
                 er += 1
                 track -= 1
+
             finally:
                 remember = i
                 if added_count >= num_images:
                     break
-        track = track + remember # If we run this loop again, remember where we left off
+                
+        track = (
+            track + remember
+        )  # If we run this loop again, remember where we left off
 
         # Scroll the page to load more images
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)")
@@ -261,5 +284,3 @@ def download_images(query = None, num_images = None, output_dir = None, driver_p
     )
 
     driver.quit()
-
-
